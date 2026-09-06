@@ -1,5 +1,26 @@
 # ont_asm_caller
 
+> ### ⚠️ 2026-09-05: the Results table below is superseded
+>
+> A calibration review found that the v1 benchmark's simulator draws each CpG's
+> depth and counts **independently**, which is not how long reads behave — one
+> 35 kb read covers every CpG in a 500 bp region. Pooling read×CpG counts as if
+> they were independent observations inflates the effective sample size, and
+> region-level type I error is **2.9× inflated at α=0.05 and 11× at α=0.001**
+> under strong co-methylation. Separately, the dispersion estimator is unbiased
+> only at μ=0.5 — which is exactly what the v1 benchmark used — and is 2–3.5×
+> too low on a realistic bimodal methylome.
+>
+> **Read [`docs/2026-09-05_calibration_critique.md`](docs/2026-09-05_calibration_critique.md)
+> before using `cluster_cpgs` + `test_regions`.** A read-level path that needs
+> no dispersion parameter is in `ont_asm_caller/readlevel.py`; the corrected
+> benchmark is `benchmarks/compare_methods_v2.py`. Real-data validation is
+> planned in [`docs/VALIDATION_PLAN.md`](docs/VALIDATION_PLAN.md) and has not
+> been run.
+>
+> The v1 *diagnosis* — that Fisher's exact test is depth-confounded and unsafe
+> — is unaffected and stands.
+
 A purpose-built statistical model for calling allele-specific methylation
 (ASM) from single-individual long-read (ONT) data — built after the
 project's original per-CpG Fisher-exact-test pipeline turned out to be
@@ -87,7 +108,13 @@ defeating the point of pooling. Dispersion must be **re-estimated on the
 pooled region-level counts themselves** (confirmed directly by
 `test_pooled_dispersion_is_lower_than_per_cpg_dispersion` in the test suite).
 
-## Results (simulated)
+## Results (simulated) — SUPERSEDED, see the notice at the top
+
+**These numbers were produced on a simulator that draws each CpG independently
+and fixes μ=0.5 everywhere. Both assumptions are wrong for long-read data, and
+each one individually invalidates the region-level rows below.** They are kept
+for provenance, not as claims. Current numbers:
+[`benchmarks/compare_methods_v2.py`](benchmarks/compare_methods_v2.py).
 
 Two-layer generative model (`ont_asm_caller/simulate_mixture.py`): each
 locus/region independently gets a true ASM label (Bernoulli, π=0.5% —
