@@ -152,6 +152,46 @@ for per-individual statistical power) isn't available at the 18-donor scale
 this package was built for, which is the actual reason a per-individual
 statistical test matters here in a way it didn't for them.
 
+**The closest real precedent, found on a second literature pass, is
+CPEL** (Jiang et al., *Nat Commun* 2020, "Detection of haplotype-dependent
+allele-specific DNA methylation in WGBS data") — an explicitly
+single-individual method (analyzed 10 tissues from one person, no group
+comparison) that fits a 1D Ising model over CpG clusters within a
+haplotype, jointly modeling methylation-level imbalance *and*
+methylation-entropy imbalance via genome-wide max-likelihood. It explicitly
+critiques marginal per-CpG independence testing — the same class of flaw
+as this project's original Fisher pipeline — as unreliable, and small
+uncorrelated windows as giving weak statistical evidence. This is a more
+statistically sophisticated treatment of CpG correlation within a region
+than this package's region-pooling (which just sums counts, treating pooled
+CpGs as exchangeable rather than modeling their joint correlation
+structure) — worth reading directly and a candidate to benchmark against,
+not just cite.
+
+Other single-sample-oriented tools exist but are narrower: ASMS (2024,
+explicitly phasing-free), MethHaplo/mHapTk (methylation-haplotype-block
+detection, correlation-focused rather than significance-testing-focused),
+SNPsplit, CGmapTools, MONOD2, MethPipe. Net assessment: this is a real, if
+fragmented, sub-field — not the ad hoc-scripts-only situation it can look
+like from the outside, but nowhere near the one-or-two-dominant-standards
+level that DSS/methylKit occupy for group DMR calling. No dedicated review
+of single-sample ASM methods specifically was found (the closest is a
+general DMR-methods review that doesn't cover this narrower problem).
+
+**One important reframing from this pass**: the field's own discussions of
+sequencing depth are about *absolute* coverage sufficiency (do you have
+enough reads to trust an estimate at all — CPEL's comparator methods are
+criticized for degrading at low coverage) rather than *cross-sample depth
+calibration* (can you compare two samples of different depth without
+conflating statistical power with a real difference). The >50,000×
+candidate-rate swing this project measured between an 8x and an 18x sample
+at identical thresholds is this project's own empirically-demonstrated
+contribution, not something the existing literature already frames and
+names the way region-pooling's multiple-testing problem is (BH-FDR at low
+prevalence crushing power is a much more generically recognized issue).
+Don't present depth-calibration as a problem the field was already
+centrally organized around solving.
+
 A related but distinct problem — detecting methylation-pattern
 ("epiallele") heterogeneity **without** requiring a phased het SNP nearby,
 via clustering per-read methylation vectors (e.g. HDBSCAN, as in
