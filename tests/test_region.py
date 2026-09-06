@@ -72,6 +72,18 @@ def test_empty_input():
     assert cluster("chr1", [], max_gap=500) == []
 
 
+def test_max_span_caps_daisy_chained_regions():
+    """Regression test for a real bug found on chr1 data: with no span cap,
+    a simple adjacent-gap rule can chain through a long CpG-dense stretch
+    into one absurd "region" (21,163 CpGs spanning 335kb was observed on
+    real data). Densely-spaced CpGs (every 100bp, well under max_gap) should
+    still get split once the cumulative span would exceed max_span."""
+    cpgs = [CpG(pos=100 * i, x1=1, n1=10, x2=1, n2=10) for i in range(50)]  # spans 4900bp
+    regions = cluster("chr1", cpgs, max_gap=500, max_span=1000)
+    assert len(regions) > 1
+    assert all(r.end - r.start <= 1000 for r in regions)
+
+
 def test_pooled_dispersion_is_lower_than_per_cpg_dispersion():
     """The key statistical fact this module relies on: pooling several
     independent per-CpG beta-binomial draws into one combined count reduces

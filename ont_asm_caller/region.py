@@ -58,12 +58,26 @@ class Region:
 
 
 def cluster_cpgs(chrom: str, cpgs: list[CpG], max_gap: int = 500,
-                  min_cpgs: int = 1) -> list[Region]:
+                  min_cpgs: int = 1, max_span: int = 1000) -> list[Region]:
     """Merge CpGs into regions wherever consecutive positions (after sorting)
     are within `max_gap` bp of each other. `cpgs` need not be pre-sorted.
     `min_cpgs` filters out regions smaller than this after clustering (set
     to e.g. 3 to match DSS callDMR's default minCG, or 1 to keep singletons
-    as their own one-CpG "regions" -- equivalent to the plain per-CpG test)."""
+    as their own one-CpG "regions" -- equivalent to the plain per-CpG test).
+
+    `max_span` caps each region's total width (region.end - region.start).
+    Without this, a simple adjacent-gap rule can DAISY-CHAIN through any
+    CpG-dense stretch (e.g. a long CpG island, or just a gene-rich region)
+    into one absurdly large "region" -- confirmed on real chr1 data: with no
+    cap, median region size was already 20 CpGs (bigger than the 4-8 the
+    benchmark in benchmarks/compare_methods.py validated), and the tail
+    reached 21,163 CpGs spanning 335kb in a single region. That's not a
+    coherent regulatory locus sharing one true rate -- it's an artifact of
+    the merge rule having no sense of overall scale. `max_span=1000`
+    (matching a plausible single-regulatory-element/CpG-island scale) forces
+    a split once a region would exceed it, even if every individual gap
+    within it is `<= max_gap`.
+    """
     if not cpgs:
         return []
 
@@ -80,7 +94,8 @@ def cluster_cpgs(chrom: str, cpgs: list[CpG], max_gap: int = 500,
         )
 
     for c in ordered[1:]:
-        if c.pos - cur[-1].pos <= max_gap:
+        would_span = c.pos - cur[0].pos
+        if c.pos - cur[-1].pos <= max_gap and would_span <= max_span:
             cur.append(c)
         else:
             regions.append(_flush(cur))
