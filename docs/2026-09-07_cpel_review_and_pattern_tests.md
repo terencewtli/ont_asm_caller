@@ -326,8 +326,82 @@ parallelise trivially by region.
 
 ## 6. Benchmark
 
-`benchmarks/compare_pattern_methods.py`. Results are inserted below once the run
-completes; the design is fixed in advance, above.
+12,000 regions per scenario, π = 0.01 on each axis independently, BH α = 0.05,
+10–30 reads per haplotype. Raw logs: `benchmarks/results/2026-09-07_pattern_methods.txt`.
+
+| scenario | method | called | FDR | power | pow(mean) | pow(corr) |
+|---|---|---|---|---|---|---|
+| **epiallele** (DE 2.3) | pooled_bb | 21 | 0.143 | **0.073** | 0.151 | 0.000 |
+| *neither model* | readfrac_welch | 4 | 0.000 | 0.016 | 0.034 | 0.000 |
+| | ks_matched | 12 | 0.000 | 0.049 | 0.101 | 0.000 |
+| | t_mml | 13 | 0.154 | 0.045 | 0.092 | 0.000 |
+| | t_nme | 15 | 0.133 | 0.053 | 0.109 | 0.000 |
+| | t_pdm | 14 | 0.357 | 0.037 | 0.050 | 0.024 |
+| | **t_pdm_cpelnull** | **0** | — | **0.000** | 0.000 | 0.000 |
+| **markov** (DE 2.1) | pooled_bb | 73 | 0.041 | **0.295** | 0.590 | 0.000 |
+| *CPEL correctly* | readfrac_welch | 22 | 0.000 | 0.093 | 0.188 | 0.000 |
+| *specified* | ks_matched | 21 | 0.048 | 0.084 | 0.162 | 0.008 |
+| | t_mml | 9 | 0.000 | 0.038 | 0.077 | 0.000 |
+| | t_nme | 26 | 0.077 | 0.101 | 0.205 | 0.000 |
+| | t_pdm | 32 | 0.031 | 0.131 | 0.231 | 0.034 |
+| | **t_pdm_cpelnull** | **0** | — | **0.000** | 0.000 | 0.000 |
+| **exchangeable** (DE 3.5) | pooled_bb | 36 | 0.083 | **0.144** | 0.266 | 0.000 |
+| *this package* | readfrac_welch | 2 | 0.000 | 0.009 | 0.016 | 0.000 |
+| *favoured* | ks_matched | 9 | 0.111 | 0.035 | 0.065 | 0.000 |
+| | t_mml | 4 | 0.000 | 0.017 | 0.032 | 0.000 |
+| | t_nme | 3 | 0.000 | 0.013 | 0.024 | 0.000 |
+| | t_pdm | 5 | 0.000 | 0.022 | 0.024 | 0.019 |
+| | **t_pdm_cpelnull** | **0** | — | **0.000** | 0.000 | 0.000 |
+
+Matched-null type I error, all three scenarios pooled: 0.044–0.059 at α = 0.05,
+0.007–0.015 at 0.01, 0.0008–0.0024 at 0.001. The null is calibrated.
+
+### Reading these honestly
+
+**1. CPEL's statistics do not win anywhere — including where CPEL is correctly
+specified.** On `markov`, generated from an Ising chain, the best CPEL statistic
+(`t_pdm`, power 0.131) is beaten by the plain pooled beta-binomial already in
+this package (0.295), and that is with CPEL's statistics given a *better* null
+than CPEL's own. The added machinery does not pay for itself here.
+
+**2. CPEL's null is the binding constraint, confirmed three times.**
+`t_pdm_cpelnull` — the same statistic scored against CPEL's own protocol
+(`Cmin = 5`, stratified on CpG count alone) — called **zero** regions in every
+scenario, floored at p ≈ 1e-3, while the identical statistic against the
+depth-matched null called 14 / 32 / 5. This is the single cleanest result here.
+
+**3. The correlation axis is not reachable at ONT depth.** Maximum power on
+equal-mean disorder imbalance across every method and every scenario: **0.034**.
+`t_nme` — the statistic built for it — scored **0.000 on that axis in all three**
+while retaining power on the *mean* axis (0.109 / 0.205 / 0.024), i.e. at 10–30
+reads NME is largely tracking the mean rather than the entropy. That follows from
+the identifiability measurement in §8.3. The second ASM axis is real and is
+genuinely invisible to every existing test, and on this evidence it is **also not
+detectable**, which is an argument against investing further in it rather than
+for.
+
+**4. The benchmark does not probe the regime that motivated the read-level path.**
+Measured design effect in all three scenarios: **2.1 – 3.5**. `compare_methods_v2.py`
+measured the pooled test's FDR against DE as 0.040 (DE 1.01) → 0.070 (DE 2.40) →
+**0.695** (DE 5.49). These scenarios sit at the benign end. So "pooled_bb wins on
+power everywhere" is a statement about DE ≈ 2–3.5 and says nothing about DE ≈ 5,
+where the same test is already known to collapse. **The apparent winner is the
+method whose failure mode this benchmark does not test**, and which regime is real
+is decided by `decay_bp` (§7a). A DE sweep is the obvious missing run.
+
+**5. The precision is poor and the method ranking is not resolved.** With 229–246
+true positives and 2–73 calls per method, several FDR figures rest on fewer than
+ten events; "FDR 0.000" on 4 calls means nothing. Differences among methods calling
+under ~20 regions are not statistically resolvable at this scale. Treat the
+qualitative findings (1)–(4) as the results and the individual numbers as
+indicative.
+
+**6. A limitation of the `epiallele` scenario itself.** It was built to be a model
+neither method assumes, and parametrically it is — but its measured decay length
+is infinite (amplitude 0.32), because its latent patterns span the whole region.
+So it is non-parametric but still *exchangeable*, and only `markov` actually
+carries distance decay. A genuinely neutral scenario with decaying correlation is
+missing and should be added before this comparison is called settled.
 
 
 ---

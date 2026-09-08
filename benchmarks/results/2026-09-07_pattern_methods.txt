@@ -1,0 +1,81 @@
+Pattern-method benchmark. BH-FDR alpha=0.05.
+Two ASM axes simulated independently: mean imbalance and
+within-read CORRELATION imbalance at equal mean.
+
+================================================================================================
+kind=epiallele   regions=12000   true ASM: 246 (119 mean-axis, 127 correlation-axis, 0 both)
+================================================================================================
+  observed statistics: 136s
+  nulls built: 1121s
+
+  method                called     FDR   power  pow(mean)  pow(corr)      min p
+  pooled_bb                 21   0.143   0.073      0.151      0.000   9.62e-12
+  readfrac_welch             4   0.000   0.016      0.034      0.000   1.07e-06
+  ks_matched                12   0.000   0.049      0.101      0.000   2.10e-06
+  t_mml                     13   0.154   0.045      0.092      0.000   2.22e-06
+  t_nme                     15   0.133   0.053      0.109      0.000   3.74e-06
+  t_pdm                     14   0.357   0.037      0.050      0.024   2.53e-06
+  t_pdm_cpelnull             0     nan   0.000      0.000      0.000   1.27e-03
+
+  matched-null type I error on H0 splits (nominal in parentheses)
+  stat              n    @0.05    @0.01    @0.001      min p
+  ks             2500    0.048    0.009    0.0016   4.27e-06
+  t_mml          2500    0.055    0.013    0.0024   3.42e-05
+  t_nme          2500    0.046    0.006    0.0008   2.11e-05
+  t_pdm          2500    0.046    0.010    0.0012   4.27e-06
+
+  total 1173s
+Pattern-method benchmark. BH-FDR alpha=0.05.
+Two ASM axes simulated independently: mean imbalance and
+within-read CORRELATION imbalance at equal mean.
+
+================================================================================================
+kind=markov   regions=12000   true ASM: 237 (118 mean-axis, 120 correlation-axis, 1 both)
+================================================================================================
+  observed statistics: 158s
+  nulls built: 1229s
+
+  method                called     FDR   power  pow(mean)  pow(corr)      min p
+  pooled_bb                 73   0.041   0.295      0.590      0.000   1.96e-14
+  readfrac_welch            22   0.000   0.093      0.188      0.000   7.48e-09
+  ks_matched                21   0.048   0.084      0.162      0.008   2.22e-07
+  t_mml                      9   0.000   0.038      0.077      0.000   2.22e-07
+  t_nme                     26   0.077   0.101      0.205      0.000   7.52e-07
+  t_pdm                     32   0.031   0.131      0.231      0.034   2.22e-07
+  t_pdm_cpelnull             0     nan   0.000      0.000      0.000   1.64e-04
+
+  matched-null type I error on H0 splits (nominal in parentheses)
+  stat              n    @0.05    @0.01    @0.001      min p
+  ks             2500    0.049    0.007    0.0008   1.22e-06
+  t_mml          2500    0.050    0.010    0.0012   4.76e-06
+  t_nme          2500    0.045    0.010    0.0008   1.82e-04
+  t_pdm          2500    0.044    0.007    0.0008   4.77e-05
+
+  total 1285s
+Pattern-method benchmark. BH-FDR alpha=0.05.
+Two ASM axes simulated independently: mean imbalance and
+within-read CORRELATION imbalance at equal mean.
+
+================================================================================================
+kind=exchangeable   regions=12000   true ASM: 229 (125 mean-axis, 105 correlation-axis, 1 both)
+================================================================================================
+  observed statistics: 157s
+  nulls built: 1231s
+
+  method                called     FDR   power  pow(mean)  pow(corr)      min p
+  pooled_bb                 36   0.083   0.144      0.266      0.000   5.48e-11
+  readfrac_welch             2   0.000   0.009      0.016      0.000   1.69e-08
+  ks_matched                 9   0.111   0.035      0.065      0.000   2.22e-07
+  t_mml                      4   0.000   0.017      0.032      0.000   2.22e-07
+  t_nme                      3   0.000   0.013      0.024      0.000   1.92e-06
+  t_pdm                      5   0.000   0.022      0.024      0.019   2.22e-07
+  t_pdm_cpelnull             0     nan   0.000      0.000      0.000   1.31e-03
+
+  matched-null type I error on H0 splits (nominal in parentheses)
+  stat              n    @0.05    @0.01    @0.001      min p
+  ks             2500    0.059    0.011    0.0008   2.49e-04
+  t_mml          2500    0.059    0.015    0.0012   2.23e-04
+  t_nme          2500    0.055    0.011    0.0012   3.47e-05
+  t_pdm          2500    0.052    0.012    0.0012   1.61e-05
+
+  total 1287s
