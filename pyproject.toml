@@ -1,6 +1,6 @@
 [project]
 name = "ont-asm-caller"
-version = "0.1.0"
+version = "0.2.0"
 description = "Depth-aware, purpose-built allele-specific methylation calling for single-individual long-read haplotype comparisons"
 requires-python = ">=3.9"
 dependencies = [

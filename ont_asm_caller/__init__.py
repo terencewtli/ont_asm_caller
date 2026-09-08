@@ -1,3 +1,5 @@
+__version__ = "0.2.0"
+
 from .model import ASMResult, test_locus, fit_mu, bb_logpmf
 from .dispersion import estimate_dispersion, estimate_dispersion_trend
 from .simulate import simulate_loci, SimulatedLocus
@@ -23,6 +25,7 @@ from .pattern import (
 from .null import MatchedNull, calibration_report, split_reads
 from .decay import (DecayCurve, comethylation_decay, implied_design_effect,
                     deattenuate)
+from .provenance import stamp, write_stamp, git_commit, resolve_region_table_version
 from .simulate_patterns import (
     PatternRegion, simulate_pattern_regions,
     molecules_exchangeable, molecules_markov, molecules_epiallele,
@@ -49,6 +52,9 @@ __all__ = [
     "MatchedNull", "calibration_report", "split_reads",
     "DecayCurve", "comethylation_decay", "implied_design_effect",
     "deattenuate",
+    # provenance: stamp every cluster output with the commit that made it
+    "stamp", "write_stamp", "git_commit", "resolve_region_table_version",
+    "__version__",
     "PatternRegion", "simulate_pattern_regions",
     "molecules_exchangeable", "molecules_markov", "molecules_epiallele",
 ]
