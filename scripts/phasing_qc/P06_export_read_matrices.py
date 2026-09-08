@@ -42,9 +42,35 @@ import pandas as pd
 
 PROJ = "/u/project/cluo/terencew/claude/project_ideas/asm_lr"
 SAMTOOLS = "/u/local/apps/samtools/1.15/gcc-4.8.5/bin/samtools"
-MOD_QUAL_THRESH = 0.5
 MIN_READS = 4
 NO_CALL = -1
+
+# --- call confidence -------------------------------------------------------
+# modkit extract emits ONE ROW PER (read, position, mod_code), so a CpG appears
+# twice: mod_code "m" (5mC) and "h" (5hmC), with mod_qual the probability of
+# THAT modification. P(canonical C) = 1 - p_m - p_h. Example from real output:
+#
+#   ...400581... 0.6855 h        <- 5hmC probable
+#   ...400581... 0.3145 m        <- and only 31% 5mC
+#
+# The earlier `mod_qual >= 0.5` rule on the "m" row alone turns that into a
+# confident UNMETHYLATED call, even though the base is almost certainly
+# modified. That matters more than it looks: a wrong binary call attenuates
+# every correlation measure by (1-2*eps)^2, and the design effect IS a
+# correlation measure. Measured on simulation at true DE 6.3:
+#   eps=0.02 -> 5.9   eps=0.05 -> 5.3   eps=0.10 -> 4.4   eps=0.20 -> 2.9
+# i.e. call noise can move DE across the whole range that decides whether
+# region pooling is legal. (decay_bp itself is unaffected -- only amplitude.)
+#
+# So: take the argmax over {C, m, h}, require it to clear CONF_THRESH, and emit
+# a NO-CALL otherwise. A no-call costs data; a wrong call costs calibration.
+CONF_THRESH = 0.80
+# What to do when 5hmC is the most probable state. "nocall" is the default
+# because it is the only option that does not bias the correlation: calling it
+# unmethylated is a systematic error concentrated in specific genomic contexts,
+# and calling it methylated conflates two marks. Set "methylated" to reproduce
+# modkit's --combine-mods behaviour, or "unmethylated" for the old rule.
+H_POLICY = "nocall"          # "nocall" | "methylated" | "unmethylated"
 
 
 def hp_tags(sample, chrom):
@@ -62,18 +88,60 @@ def hp_tags(sample, chrom):
     return hp
 
 
-def stream_calls(sample, chrom):
-    """(read_id, ref_position, called) for CpG methylation calls, streamed once.
+def stream_calls(sample, chrom, stats):
+    """(read_id, cpg_position, call) for CpG methylation, streamed once.
 
-    Column indices are those verified in P05: read_id(1) ref_position(3)
-    mod_qual(11) mod_code(12)."""
+    `call` is 1 / 0 / None (no-call). `cpg_position` is normalised to the PLUS
+    strand -- see below. Column indices verified against the real header:
+    read_id(1) ref_position(3) ref_mod_strand(7) mod_qual(11) mod_code(12).
+
+    STRAND NORMALISATION. modkit extract is per-strand and does not combine.
+    A CpG occupies (p, p+1) = (C, G) on the plus strand, so its minus-strand C
+    sits at p+1 and modkit reports the SAME physical CpG at position p from
+    plus-strand reads and p+1 from minus-strand reads. Keying columns on the raw
+    ref_position therefore splits every CpG into two columns 1 bp apart that
+    share ZERO reads. design_effect survives that (it reduces each read to a
+    fraction over whatever columns that read saw), but the decay curve loses
+    exactly its short-distance bins, fit_chain/NME/PDM get a chain over twice
+    the sites with strand-structured missingness, and n_cpgs -- a null
+    stratification variable -- doubles.
+    """
     path = f"{PROJ}/modkit/{sample}_{chrom}_modkit_extract.tsv.gz"
-    awk = ('BEGIN{FS="\\t"} NR>1 && $12=="m" && $3>=0 {print $1"\\t"$3"\\t"$11}')
+    # keep BOTH mod codes: P(canonical) = 1 - p_m - p_h needs both
+    awk = ('BEGIN{FS="\\t"} NR>1 && ($12=="m" || $12=="h") && $3>=0 '
+           '{print $1"\\t"$3"\\t"$7"\\t"$11"\\t"$12}')
     proc = subprocess.Popen(f"zcat {path} | awk '{awk}'", shell=True,
                             stdout=subprocess.PIPE, text=True)
+    pending = {}
     for line in proc.stdout:
-        rid, pos, qual = line.rstrip("\n").split("\t")
-        yield rid, int(pos), float(qual) >= MOD_QUAL_THRESH
+        rid, pos, strand, qual, code = line.rstrip("\n").split("\t")
+        pos = int(pos) - 1 if strand == "-" else int(pos)
+        stats["strand_minus" if strand == "-" else "strand_plus"] += 1
+        key = (rid, pos)
+        d = pending.setdefault(key, {})
+        d[code] = float(qual)
+        if len(d) < 2:
+            continue                      # wait for the partner row
+        del pending[key]
+        p_m, p_h = d.get("m", 0.0), d.get("h", 0.0)
+        p_c = 1.0 - p_m - p_h
+        best = max((p_c, "c"), (p_m, "m"), (p_h, "h"))
+        stats["total"] += 1
+        if best[0] < CONF_THRESH:
+            stats["ambiguous"] += 1
+            yield rid, pos, None
+        elif best[1] == "m":
+            yield rid, pos, True
+        elif best[1] == "c":
+            yield rid, pos, False
+        else:
+            stats["hmc"] += 1
+            yield rid, pos, (None if H_POLICY == "nocall"
+                             else H_POLICY == "methylated")
+    # rows whose partner never arrived (shouldn't happen, but don't lose them)
+    for (rid, pos), d in pending.items():
+        stats["unpaired"] += 1
+        yield rid, pos, None
     proc.wait()
 
 
@@ -94,8 +162,10 @@ def main():
     ends = regions["end"].to_numpy()
     # one pass over the calls, bucketed into regions by binary search on start
     buckets = {i: {} for i in range(len(regions))}
+    stats = {k: 0 for k in ("total", "ambiguous", "hmc", "unpaired",
+                            "strand_plus", "strand_minus")}
     n_rows = n_kept = 0
-    for rid, pos, called in stream_calls(sample, chrom):
+    for rid, pos, called in stream_calls(sample, chrom, stats):
         n_rows += 1
         h = hp.get(rid)
         if h is None:
@@ -108,6 +178,16 @@ def main():
         if n_rows % 20_000_000 == 0:
             print(f"    {n_rows:,} rows scanned, {n_kept:,} kept", flush=True)
     print(f"  {n_rows:,} call rows scanned, {n_kept:,} assigned to a region", flush=True)
+    t = max(stats["total"], 1)
+    print(f"  QC: {stats['ambiguous']:,} ({stats['ambiguous']/t:.1%}) below "
+          f"CONF_THRESH={CONF_THRESH} -> no-call")
+    print(f"      {stats['hmc']:,} ({stats['hmc']/t:.1%}) 5hmC-dominant "
+          f"-> H_POLICY={H_POLICY}")
+    print(f"      strand: {stats['strand_plus']:,} plus / "
+          f"{stats['strand_minus']:,} minus"
+          f"{'  <-- both present, normalisation was required' if stats['strand_plus'] and stats['strand_minus'] else ''}")
+    if stats["unpaired"]:
+        print(f"      WARNING {stats['unpaired']:,} rows had no m/h partner")
 
     out = {k: [] for k in ("region_id", "start", "end", "positions",
                            "pos_offset", "m1", "m2", "m1_shape", "m2_shape")}
@@ -129,7 +209,8 @@ def main():
             m = np.full((len(reads), len(allpos)), NO_CALL, np.int8)
             for r, d in enumerate(reads):
                 for p, c in d.items():
-                    m[r, pidx[p]] = 1 if c else 0
+                    if c is not None:
+                        m[r, pidx[p]] = 1 if c else 0
             mats[h] = m
         if mats is None:
             continue

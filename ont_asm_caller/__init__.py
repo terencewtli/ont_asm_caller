@@ -21,7 +21,8 @@ from .pattern import (
     jsd_chains, region_statistics, read_fraction_ks,
 )
 from .null import MatchedNull, calibration_report, split_reads
-from .decay import DecayCurve, comethylation_decay, implied_design_effect
+from .decay import (DecayCurve, comethylation_decay, implied_design_effect,
+                    deattenuate)
 from .simulate_patterns import (
     PatternRegion, simulate_pattern_regions,
     molecules_exchangeable, molecules_markov, molecules_epiallele,
@@ -47,6 +48,7 @@ __all__ = [
     "chain_marginals", "jsd_chains", "region_statistics", "read_fraction_ks",
     "MatchedNull", "calibration_report", "split_reads",
     "DecayCurve", "comethylation_decay", "implied_design_effect",
+    "deattenuate",
     "PatternRegion", "simulate_pattern_regions",
     "molecules_exchangeable", "molecules_markov", "molecules_epiallele",
 ]

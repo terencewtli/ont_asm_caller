@@ -161,6 +161,41 @@ def comethylation_decay(regions, edges=None, min_pairs: int = 50,
     return DecayCurve(centres[keep], corr[keep], npair[keep], decay, amp, r2)
 
 
+def deattenuate(curve: DecayCurve, call_error_rate: float) -> DecayCurve:
+    """Undo the attenuation that binary call error imposes on the correlation.
+
+    A methylation call that is wrong with symmetric probability `eps` attenuates
+    every pairwise correlation by exactly (1 - 2*eps)^2, so
+
+        r_true = r_obs / (1 - 2*eps)^2
+
+    Verified on simulation to three decimals at eps = 0.02 / 0.05 / 0.10 / 0.20.
+
+    WHY THIS IS NOT OPTIONAL ON REAL DATA. `decay_bp` is unaffected by call
+    error -- only the AMPLITUDE is -- but the amplitude is what the design
+    effect is computed from, and the design effect is the number that decides
+    whether `region.cluster_cpgs` pooling is legal. Measured on data with a true
+    DE of 6.3: eps = 0.02 -> 5.9, 0.05 -> 5.3, 0.10 -> 4.4, 0.20 -> 2.9. That
+    spans the entire range from "pooling is fine" to "pooling cannot control
+    FDR", so an uncorrected DE from noisy calls is a LOWER BOUND, not an
+    estimate.
+
+    `eps` is estimable from modkit's own posteriors: over the calls actually
+    kept, `eps ~= mean(1 - max(P_canonical, P_m, P_h))`. Using a confidence
+    threshold at extraction (P06's `CONF_THRESH`) keeps `eps` small; emitting a
+    no-call instead of a coin flip keeps it UNBIASED, which matters more.
+    """
+    eps = float(call_error_rate)
+    # guard the INPUT, not the resulting factor: eps = 0.7 squares back into a
+    # perfectly valid-looking 0.16 while meaning something nonsensical
+    if not (0.0 <= eps < 0.5):
+        raise ValueError(f"call_error_rate must be in [0, 0.5); got {eps}")
+    f = (1.0 - 2.0 * eps) ** 2
+    return DecayCurve(curve.centres, np.clip(curve.corr / f, -1, 1),
+                      curve.n_pairs, curve.decay_bp,
+                      float(min(curve.amplitude / f, 1.0)), curve.r2)
+
+
 def implied_design_effect(curve: DecayCurve, cpg_spacing_bp: float,
                           n_cpgs: int) -> float:
     """DE = 1 + (C - 1) * ICC_bar for a region of `n_cpgs` at the given mean

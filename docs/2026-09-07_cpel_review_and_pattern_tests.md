@@ -472,6 +472,80 @@ three usable substitutes, in order of strength:
    is exactly the failure the parent `CLAUDE.md` guardrail was added for.
 3. Known metastable epialleles / VMRs from the literature.
 
+### `extract`, not `pileup` — and two things in the real `extract` output that
+### broke the first version of P06
+
+`modkit pileup` (including the haplotype-split `*_hp_pileup_{1,2}.bed.gz`) has
+already aggregated away molecule identity, which is the one thing every analysis
+here depends on:
+
+| analysis | pileup enough? |
+|---|---|
+| per-CpG beta-binomial (`model.py`), region pooling (`region.py`) | yes |
+| `design_effect` / `decay_bp` | **no** — needs within-read correlation |
+| read-level test (`readlevel.py`) | **no** — needs per-read fractions |
+| `NME` / `PDM` / `fit_chain` (`pattern.py`) | **no** — needs read patterns |
+| `MatchedNull` (`null.py`) | **no** — permutes whole reads |
+
+What is actually needed per region is a **[read × CpG] matrix of binary calls,
+split by haplotype, with the CpGs' genomic positions** — positions because the
+decay curve is correlation as a function of bp distance. Only `extract` has rows;
+only the haplotagged BAM has `HP`.
+
+Inspecting real `extract` output surfaced two defects in the first version of
+`P06`, both now fixed:
+
+**1. It is per-strand, and does not combine.** A CpG occupies (p, p+1) = (C, G)
+on the plus strand, so its minus-strand C sits at p+1 and modkit reports the same
+physical CpG at position p from plus-strand reads and p+1 from minus-strand
+reads. Keying columns on the raw `ref_position` splits every CpG into two columns
+1 bp apart **that share zero reads**. `design_effect` survives this (it reduces
+each read to a fraction over whatever columns that read saw) but the decay curve
+loses precisely its short-distance bins, `fit_chain`/NME/PDM get a chain over
+twice the sites with strand-structured missingness, and `n_cpgs` — a null
+stratification variable — doubles. `P06` now normalises minus-strand positions
+by −1 and reports the plus/minus split as QC.
+
+**2. `mod_qual >= 0.5` on the `m` row alone is not a methylation call.** `extract`
+emits one row per (read, position, mod_code), so each CpG appears twice — `m`
+(5mC) and `h` (5hmC) — with `P(canonical) = 1 − p_m − p_h`. A real row from this
+cohort reads `p_h = 0.686, p_m = 0.314`: almost certainly modified, and the old
+rule scores it a confident **unmethylated**.
+
+This is not a rounding issue. A binary call that is wrong with symmetric
+probability ε attenuates every correlation by exactly **(1 − 2ε)²** — verified to
+three decimals — and the design effect *is* a correlation measure. Measured on
+data with a true DE of 6.3:
+
+| ε | 0.00 | 0.02 | 0.05 | 0.10 | 0.20 |
+|---|---|---|---|---|---|
+| measured DE | 6.27 | 5.85 | 5.25 | 4.36 | 2.89 |
+
+That spans the entire range from "pooling is fine" to "pooling cannot control
+FDR" (`compare_methods_v2`: FDR 0.040 at DE 1.0 → 0.695 at DE 5.5). `decay_bp`
+itself is unaffected — only the amplitude — so the decay *length* is robust and
+the design effect is not.
+
+> **Consequence for a number already reported.** The handoff note's real-data
+> design effects (HG00146 median 1.39, NA18508 1.13 — "the first non-simulated
+> confirmation of Defect 1") came from `P05`, which used exactly this
+> `mod_qual >= 0.5` rule on unfiltered calls. **Those are attenuated lower
+> bounds, not estimates.** The direction of the error makes the qualitative
+> conclusion safer, not weaker — the true design effect is *higher* than
+> reported — but the numbers should not be quoted as they stand, and `P05`
+> should be rerun through the corrected call logic before they are.
+
+`P06` now takes the argmax over {C, m, h}, requires it to clear `CONF_THRESH`
+(0.80), and emits a **no-call** otherwise. A no-call costs data; a wrong call
+costs calibration, and `deattenuate()` can only correct an ε that is unbiased.
+5hmC-dominant positions are a no-call by default (`H_POLICY`), because scoring
+them unmethylated is a systematic error concentrated in specific genomic
+contexts. Both counts are printed as QC.
+
+**Worth checking before extraction:** `zcat ..._hp_pileup_1.bed.gz | cut -f6 |
+sort | uniq -c`. All `.` means the pileup combined strands; a plus/minus mix
+means it did not, and the `extract` normalisation above is definitely required.
+
 ### Format matters more than volume
 
 `modkit extract` on chr1 is 4–5 GB gzipped per sample and is **not

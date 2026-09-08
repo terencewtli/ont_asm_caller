@@ -70,3 +70,42 @@ def test_no_call_handling_does_not_bias_the_curve():
         decay_bp=600.0, baseline_mu=0.5, intra_region_span=1500,
         cpgs_per_region=(8, 14), no_call_rate=0.15, seed=2))
     assert holey.decay_bp == pytest.approx(clean.decay_bp, rel=0.25)
+
+
+@pytest.mark.parametrize("eps", [0.02, 0.05, 0.10, 0.20])
+def test_call_error_attenuates_by_the_known_factor_and_is_correctable(eps):
+    """Binary call error attenuates correlation by exactly (1-2*eps)^2. This is
+    not academic: modkit extract emits a posterior per modification, and turning
+    an ambiguous posterior into a hard 0/1 call injects exactly this error. The
+    design effect is a correlation measure, so an uncorrected DE from noisy
+    calls is a LOWER BOUND on the real one -- and DE is what decides whether
+    region pooling is legal at all."""
+    import copy
+    from ont_asm_caller.decay import deattenuate
+    base = _markov_regions(600.0, n=1200)
+    clean = comethylation_decay(base)
+
+    rng = np.random.default_rng(1)
+    noisy_regs = []
+    for r in base:
+        r2 = copy.copy(r)
+        r2.m1 = np.where(rng.random(r.m1.shape) < eps, 1 - r.m1, r.m1)
+        r2.m2 = np.where(rng.random(r.m2.shape) < eps, 1 - r.m2, r.m2)
+        noisy_regs.append(r2)
+    noisy = comethylation_decay(noisy_regs)
+
+    # the decay LENGTH survives call error; only the amplitude is attenuated
+    assert noisy.decay_bp == pytest.approx(clean.decay_bp, rel=0.10)
+    assert noisy.amplitude == pytest.approx(clean.amplitude * (1 - 2 * eps) ** 2,
+                                            rel=0.05)
+    # ... and correcting for a known eps recovers it
+    assert deattenuate(noisy, eps).amplitude == pytest.approx(clean.amplitude,
+                                                              rel=0.05)
+
+
+def test_deattenuate_rejects_impossible_error_rates():
+    curve = comethylation_decay(_markov_regions(600.0, n=800))
+    from ont_asm_caller.decay import deattenuate
+    for bad in (0.5, 0.7, -0.1):
+        with pytest.raises(ValueError):
+            deattenuate(curve, bad)
