@@ -64,7 +64,14 @@ measurement hasn't been done yet.
    everyone else) — NA21144 doesn't share that (79x/87.2x), so coverage alone won't fully
    explain it, but it's a place to start.
 
-4. **Evaluate CPEL (Jiang et al., Nat Commun 2020)** as a possible off-the-shelf alternative
+4. ~~**Evaluate CPEL**~~ — **DONE 2026-09-07**, see
+   [`2026-09-07_cpel_review_and_pattern_tests.md`](2026-09-07_cpel_review_and_pattern_tests.md).
+   Verdict: not adopted; statistics ported, machinery not. Note the paper is
+   **Abante et al.**, not Jiang et al. — that misattribution is in this note and
+   in the README's literature section, and both should be corrected before it
+   reaches a manuscript. The item as originally written follows.
+
+   **Evaluate CPEL (Nat Commun 2020)** as a possible off-the-shelf alternative
    rather than continuing to patch a custom pooled-count model. It's an Ising-model approach
    that jointly models methylation level *and* within-haplotype correlation/entropy structure —
    i.e. it explicitly models the exact co-methylation phenomenon that's breaking the pooled
@@ -82,3 +89,30 @@ at the aggregate level, even if individual loci carry some inflated false-positi
 above is enough to unblock a defensible discovery-arm locus set; items 1, 3, and 4 are the
 actual methods-development research questions and can proceed at whatever pace makes sense
 independently.
+
+
+---
+
+## 2026-09-07 addendum: item 4 closed, and what it produced
+
+Item 4 was worked in a separate session and is closed. Two of its outputs are
+**not** CPEL-specific and change the priority of the items above:
+
+- **`ont_asm_caller/null.py` removes the `1/(n_perm+1)` p-value floor.** It
+  pools permutation draws across regions within a (n_cpgs, depth, μ) stratum and
+  fits a generalised-Pareto tail, so a permutation-style test reaches p-values
+  small enough to survive genome-wide BH. This applies to
+  `readlevel.test_region_perm` unchanged. That promotes item 2 above from "run
+  the read-level test on already-called candidates" to "the read-level test can
+  now be run genome-wide", which is a larger change than item 2 assumed.
+- **There is a second ASM axis** — haplotypes differing in within-read disorder
+  at equal mean — that every test in this package is blind to by construction.
+  It overlaps the parent project's `tables/W12_epiallele_metrics.csv`
+  (304,514 loci, `within_hp_entropy` / `bimodality_coef`), which is a second
+  instance of two arms measuring the same quantity independently. **Reconcile
+  before either arm builds further on it.**
+
+Items 1 and 3 are unchanged and still need real data. The new work's binding
+constraint is the same measurement item 1 needs — see §6 of the review doc for
+what would actually be sufficient (one chromosome, 2–3 donors, and *not* as raw
+`modkit extract`).

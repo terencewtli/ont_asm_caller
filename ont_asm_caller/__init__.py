@@ -13,6 +13,19 @@ from .readlevel import (
     ReadLevelResult, test_region_reads, test_region_perm,
     read_fractions, design_effect,
 )
+# read-PATTERN path -- CPEL's statistics (Abante et al., Nat Commun 2020) in the
+# form long reads make available, plus the cheap non-parametric alternative.
+# See docs/2026-09-07_cpel_review_and_pattern_tests.md.
+from .pattern import (
+    fit_chain, chain_mml, chain_entropy_bits, chain_logZ, chain_marginals,
+    jsd_chains, region_statistics, read_fraction_ks,
+)
+from .null import MatchedNull, calibration_report, split_reads
+from .decay import DecayCurve, comethylation_decay, implied_design_effect
+from .simulate_patterns import (
+    PatternRegion, simulate_pattern_regions,
+    molecules_exchangeable, molecules_markov, molecules_epiallele,
+)
 
 __all__ = [
     # per-CpG / pooled-region path (see docs/2026-09-05_calibration_critique.md
@@ -28,4 +41,12 @@ __all__ = [
     "simulate_mixture", "MixtureLocus",
     "simulate_spatial_mixture", "SpatialCpG",
     "ReadRegion", "simulate_read_regions", "per_cpg_counts", "draw_baseline_mu",
+    # read-pattern path: MML / NME / PDM + the depth-matched, tail-extrapolated
+    # null that lets a permutation-style test survive genome-wide BH
+    "fit_chain", "chain_mml", "chain_entropy_bits", "chain_logZ",
+    "chain_marginals", "jsd_chains", "region_statistics", "read_fraction_ks",
+    "MatchedNull", "calibration_report", "split_reads",
+    "DecayCurve", "comethylation_decay", "implied_design_effect",
+    "PatternRegion", "simulate_pattern_regions",
+    "molecules_exchangeable", "molecules_markov", "molecules_epiallele",
 ]

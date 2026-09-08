@@ -77,3 +77,39 @@ correlated with a switch point) that a true read-level permutation
 Treat a "sane bootstrap null + elevated real data" result as evidence
 pointing at phasing/inputs, not as proof — the read-level version is the
 follow-up if this doesn't fully settle it.
+
+---
+
+## `P06_export_read_matrices.py` / `P07_comethylation_decay.py`
+
+Added 2026-09-07 alongside the CPEL evaluation
+(`github/ont_asm_caller/docs/2026-09-07_cpel_review_and_pattern_tests.md`).
+
+**`P06` exists to stop re-streaming multi-GB files.** `P05` streams a 4–5 GB
+gzipped `modkit extract` per sample per window and its own docstring notes this
+will not scale genome-wide. Every read-level analysis in `ont_asm_caller` wants
+the same thing out of it — a (read × CpG) 0/1 matrix per region per haplotype —
+so `P06` extracts that once into a packed `.npz`
+(`tables/read_matrices/{sample}_{chrom}.npz`). At 10⁵ regions × ~40 reads × ~8
+CpGs that is tens of MB rather than gigabytes, which is what makes the methods
+work iterable off-cluster.
+
+`load_read_matrices()` yields objects duck-typed to
+`simulate_patterns.PatternRegion`, so `decay.py`, `pattern.py` and `null.py`
+consume real and simulated data through the same path with no separate real-data
+code path to keep in sync.
+
+**`P07` measures `decay_bp`, and should be run first.** Three analyses are
+conditional on that single number — whether `region.cluster_cpgs` pooling is
+legal at all, every result in `benchmarks/compare_pattern_methods.py`, and the
+parent project's co-methylation-decay curve (`md/20260903_qc_review.md` §7.3) —
+and none of them can be quoted before it exists. `P07` prints the fitted decay
+length beside `readlevel.design_effect` on the same regions; those are two
+independently written estimators of the same quantity, and **if they disagree,
+that is the finding**, not a nuisance.
+
+**Resolution caveat.** The curve only sees CpG pairs inside a supplied region, so
+it cannot resolve a decay longer than the region span. The caller caps regions at
+`max_span = 1000` bp, so run on the caller's own regions `P07` measures decay
+only out to ~1 kb; a fitted value near the mean span is a *lower bound*.
+Measured on simulation: 400 bp regions generated at `decay_bp = 500` return 88.

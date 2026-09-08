@@ -20,6 +20,18 @@
 >
 > The v1 *diagnosis* — that Fisher's exact test is depth-confounded and unsafe
 > — is unaffected and stands.
+>
+> ### 2026-09-07: read-pattern path added
+>
+> CPEL was evaluated as an off-the-shelf alternative and **not adopted** — its
+> statistics were ported instead, because the Ising machinery exists to solve a
+> partial-observation problem long reads do not have. Two things came out of it
+> that matter independently of CPEL: a second, orthogonal ASM axis (haplotypes
+> differing in within-read *disorder* at equal mean, which every test in this
+> package is blind to by construction), and a **depth-matched, tail-extrapolated
+> null** that removes the `1/(n_perm+1)` p-value floor which currently makes
+> `test_region_perm` unusable genome-wide. See
+> [`docs/2026-09-07_cpel_review_and_pattern_tests.md`](docs/2026-09-07_cpel_review_and_pattern_tests.md).
 
 A purpose-built statistical model for calling allele-specific methylation
 (ASM) from single-individual long-read (ONT) data — built after the
@@ -179,21 +191,39 @@ for per-individual statistical power) isn't available at the 18-donor scale
 this package was built for, which is the actual reason a per-individual
 statistical test matters here in a way it didn't for them.
 
-**The closest real precedent, found on a second literature pass, is
-CPEL** (Jiang et al., *Nat Commun* 2020, "Detection of haplotype-dependent
-allele-specific DNA methylation in WGBS data") — an explicitly
-single-individual method (analyzed 10 tissues from one person, no group
-comparison) that fits a 1D Ising model over CpG clusters within a
-haplotype, jointly modeling methylation-level imbalance *and*
-methylation-entropy imbalance via genome-wide max-likelihood. It explicitly
-critiques marginal per-CpG independence testing — the same class of flaw
-as this project's original Fisher pipeline — as unreliable, and small
-uncorrelated windows as giving weak statistical evidence. This is a more
-statistically sophisticated treatment of CpG correlation within a region
-than this package's region-pooling (which just sums counts, treating pooled
-CpGs as exchangeable rather than modeling their joint correlation
-structure) — worth reading directly and a candidate to benchmark against,
-not just cite.
+**The closest real precedent is CPEL** (Abante, Fang, Feinberg & Goutsias,
+*Nat Commun* 2020, "Detection of haplotype-dependent allele-specific DNA
+methylation in WGBS data"; `CpelAsm.jl`) — an explicitly single-individual
+method (10 tissues from one person, no group comparison) that fits a 1-D Ising
+model over CpG clusters within a haplotype, jointly modelling methylation-level
+imbalance *and* methylation-entropy imbalance. It explicitly critiques marginal
+per-CpG independence testing — the same class of flaw as this project's original
+Fisher pipeline — as unreliable.
+
+**It has now been read, evaluated and partly ported; it was not adopted.** Full
+review in [`docs/2026-09-07_cpel_review_and_pattern_tests.md`](docs/2026-09-07_cpel_review_and_pattern_tests.md).
+The short version:
+
+- *Its entropy axis is a real gap here and was ported.* `readlevel.py` reduces
+  each molecule to a fraction, which handles the design effect correctly but
+  discards the within-read pattern. CPEL keeps it, and turns it into a second
+  ASM axis (`NME`) that no test in this package can see.
+- *Its machinery does not transfer.* The Ising model is in that paper because a
+  ~100 bp bisulfite read observes only a fragment of a haplotype, so the joint
+  distribution must be inferred by marginalising over what each read missed —
+  which is what costs `CpelAsm` 48 h on 20 CPUs per sample. A 35 kb ONT read
+  observes every CpG in the region directly, which makes the fit a small
+  complete-data concave problem (milliseconds, `pattern.fit_chain`) and makes a
+  fully non-parametric alternative viable that is not viable in WGBS.
+- *Its null is not usable at ONT depth.* CPEL generates every null draw at the
+  global minimum coverage `Cmin = 5` regardless of a region's real depth, and
+  stratifies on CpG count alone — neither depth nor methylation level. And its
+  p-values are floored at `1/(L+1) ≈ 1e-3`, the **same** defect this repo
+  already documented in `test_region_perm`; across 715,155 haplotypes under BH
+  that means its discovery set is unrankable internally.
+- *Its scope is narrower than long reads allow.* CPEL can only test where a SNP
+  cluster is. Long reads phase whole chromosome arms, so every region is
+  testable.
 
 Other single-sample-oriented tools exist but are narrower: ASMS (2024,
 explicitly phasing-free), MethHaplo/mHapTk (methylation-haplotype-block
@@ -239,8 +269,16 @@ testing the number of components) and is not implemented here.
   allele-specific methylation atlas).
 - No CLI yet — use the library directly (see `ont_asm_caller/__init__.py`
   for the public API: `test_locus`, `estimate_dispersion`, `cluster_cpgs`,
-  `test_regions`, plus the `simulate*` functions for further validation
-  work).
+  `test_regions`, `test_region_reads`, `region_statistics`, `MatchedNull`,
+  plus the `simulate*` functions for further validation work).
+- The read-pattern path (`pattern.py`, `null.py`) is simulation-only and its
+  results are conditional on `decay_bp`, the co-methylation decay length along a
+  molecule, which has never been measured on this project's data. That
+  measurement is cheap (a few Mb of read-level data) and blocks quoting any
+  number from `benchmarks/compare_pattern_methods.py`.
+- The entropy axis overlaps the parent project's `tables/W12_epiallele_metrics.csv`
+  (304,514 loci with `within_hp_entropy`, `bimodality_coef`). Reconcile the two
+  definitions before extending either.
 - Switch-error / haplotype-mislabeling modeling exists in the simulator
   (`simulate_loci(..., switch_error_rate=...)`) to characterize how
   imperfect phasing attenuates detectable effect sizes, but isn't yet
@@ -250,8 +288,12 @@ testing the number of components) and is not implemented here.
 
 ```
 pip install -e .
-python -m pytest tests/          # 33 tests: calibration, power, dispersion
-                                  # recovery, clustering mechanics, region
-                                  # pooling's power/dispersion claims
-python benchmarks/compare_methods.py   # reproduces the Results table above
+python -m pytest tests/          # calibration, power, dispersion recovery,
+                                  # clustering mechanics, region pooling's
+                                  # power/dispersion claims, and the chain
+                                  # recursions checked against brute-force
+                                  # enumeration of the 2^N state space
+python benchmarks/compare_methods.py           # v1 table above (superseded)
+python benchmarks/compare_methods_v2.py        # shared reads + bimodal methylome
+python benchmarks/compare_pattern_methods.py   # CPEL statistics vs. this package
 ```
