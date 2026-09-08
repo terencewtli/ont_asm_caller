@@ -283,13 +283,26 @@ screened candidates" to a genome-wide test.
 
 Ordered, and the order matters — step 2 gates everything after it.
 
+**Pick the donors deliberately — and note a contradiction in the repo's own
+docs.** `VALIDATION_PLAN.md` §"Which chromosome and which donors" recommends
+`HG00344` as one of the two first-pass donors ("complete downloads, not on the
+problem-donor list"), while `scripts/phasing_qc/README.md` flags `HG00344` as one
+of the **two anomalous zero-hit donors** (ρ̂ = 0.097, 5–10× the cohort, ~zero
+significant regions). Both cannot be right; resolve before extracting.
+
+The resolution is convenient rather than costly: extract **`HG00344` (anomalous)
+plus one confirmed-clean donor**. That gives the decay/DE baseline *and* the
+diagnostic in §8.6 in one pass.
+
 ```bash
 # 1. extract once; ~tens of MB instead of the 4-5 GB modkit extract stream
-python3 scripts/phasing_qc/P06_export_read_matrices.py HG00344 chr15
+python3 scripts/phasing_qc/P06_export_read_matrices.py NA19682 chr15   # clean baseline
+python3 scripts/phasing_qc/P06_export_read_matrices.py HG00344 chr15   # anomalous donor
 
 # 2. MEASURE decay_bp. Nothing below should be quoted before this exists.
 #    Prints the fitted decay beside readlevel.design_effect on the same
 #    regions -- two independent estimators that must agree.
+python3 scripts/phasing_qc/P07_comethylation_decay.py NA19682 chr15
 python3 scripts/phasing_qc/P07_comethylation_decay.py HG00344 chr15
 ```
 
@@ -298,7 +311,7 @@ python3 scripts/phasing_qc/P07_comethylation_decay.py HG00344 chr15
 from ont_asm_caller import MatchedNull, region_statistics, read_fraction_ks
 from scripts.phasing_qc.P06_export_read_matrices import load_read_matrices
 
-regions = list(load_read_matrices("tables/read_matrices/HG00344_chr15.npz", "chr15"))
+regions = list(load_read_matrices("tables/read_matrices/NA19682_chr15.npz", "chr15"))
 
 def stats(m1, m2):
     out = {}
@@ -508,3 +521,31 @@ beyond that is not the binding constraint — the entropy-axis truth set is.
    (`scripts/phasing_qc/README.md`), the entropy axis may be **more**
    switch-sensitive than the mean axis, not less. This should be simulated
    before the entropy axis is run on the flagged donors.
+
+6. **The two unexplained-overdispersion donors are now a decidable question.**
+   `HG00344` and `NA21144` carry ρ̂ = 0.097 / 0.116, 5–10× every other donor, and
+   call essentially zero significant regions (`scripts/phasing_qc/README.md`;
+   handoff item 3). Defect 2 predicts ρ too *low*, so neither documented defect
+   explains it.
+
+   **This is almost certainly a property of the inputs rather than a bug the
+   method must fix — but the work in this commit turns it from a mystery into a
+   test, and that is the reason to care.** A single global ρ is the only place a
+   pooled-count model can put within-molecule correlation, so a genuinely higher
+   design effect and haplotype labels that scramble reads across alleles produce
+   the *same* symptom and the model cannot separate them. The read-level and
+   pattern paths have no ρ parameter at all. Three checks, in order:
+
+   1. Run `comethylation_decay` / `design_effect` on those two donors. If their
+      DE really is 5–10× the cohort, the elevated ρ̂ is **correct** and the caller
+      is behaving properly on genuinely noisier data.
+   2. Run `test_region_reads` + `MatchedNull` on them. Normal results ⇒ it was a
+      dispersion-estimation artifact. Still anomalous ⇒ the haplotype labels are
+      the problem and no test will repair them.
+   3. Sharpest: switch errors move reads between alleles, which makes a
+      mislabelled allele look **bistable**. That should inflate `T_NME` while
+      *attenuating* `T_MML`. Globally elevated `T_NME` with normal `T_MML` on
+      exactly these two donors would be close to a positive identification of
+      switch-error contamination — and it is the one use for the entropy axis
+      that survives its poor power in §6, because it is a genome-wide aggregate
+      signal, not a per-region call.
