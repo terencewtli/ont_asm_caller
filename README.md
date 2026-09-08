@@ -33,6 +33,13 @@
 > `test_region_perm` unusable genome-wide. See
 > [`docs/2026-09-07_cpel_review_and_pattern_tests.md`](docs/2026-09-07_cpel_review_and_pattern_tests.md).
 
+**Method and theory writeup:
+[`docs/paper/method.pdf`](docs/paper/method.pdf)** (source `method.tex`, `make`
+to rebuild) — the models, their derivations, the design-effect theory, the
+generative simulators and their limitations, what is and is not FDR-controlled,
+and the first real-data measurement. Current priorities:
+[`docs/PRIORITIES.md`](docs/PRIORITIES.md).
+
 A purpose-built statistical model for calling allele-specific methylation
 (ASM) from single-individual long-read (ONT) data — built after the
 project's original per-CpG Fisher-exact-test pipeline turned out to be
