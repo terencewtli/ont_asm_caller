@@ -181,6 +181,17 @@ tested. Full benchmark: `benchmarks/compare_methods.py`.
 
 ## Literature context
 
+**"What do other people do?"** — the first question a reviewer asks. Answered
+from primary sources in
+[`docs/2026-09-08_what_do_others_do.md`](docs/2026-09-08_what_do_others_do.md).
+Summary: almost nobody performs a calibrated per-individual statistical test.
+deCODE (7,179 genomes) uses a bare threshold rule and lets a cohort-scale
+genotype regression carry the inference; Akbari 2022 (12 LCLs — the closest
+design to this one) routes ASM through DSS, whose dispersion assumption a single
+individual's two haplotypes violate; Voronina 2025 states no ASM criterion at
+all. And **nobody calibrates across donors of differing depth** — the coverage
+literature is about basecaller accuracy, not test calibration.
+
 The core device — beta-binomial modeling with dispersion pooled across
 *loci* rather than *replicates*, because a single individual has no
 replicates — is well-established in **allele-specific expression** (ASE):
