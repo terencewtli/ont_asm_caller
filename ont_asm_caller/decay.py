@@ -199,14 +199,39 @@ def deattenuate(curve: DecayCurve, call_error_rate: float) -> DecayCurve:
 def implied_design_effect(curve: DecayCurve, cpg_spacing_bp: float,
                           n_cpgs: int) -> float:
     """DE = 1 + (C - 1) * ICC_bar for a region of `n_cpgs` at the given mean
-    spacing, read off the fitted curve. This is the bridge between this
-    measurement and `readlevel.design_effect` -- if the two disagree on real
-    data, one of them is wrong and the pooled region test's legality is
-    unresolved."""
-    if not np.isfinite(curve.decay_bp) or n_cpgs < 2:
+    spacing, read off the measured curve.
+
+    Integrates the EMPIRICAL correlation curve, not the exponential fit. On real
+    data the single-exponential model is simply wrong -- HG00146 chr15 fits it at
+    r^2 = 0.25-0.40, because the true structure is a steep short-range decay
+    (correlation 0.76 at 6bp falling to 0.12 at 73bp) plus a flat long-range
+    floor near 0.07 that does not decay within 2 kb. Using the fit here made this
+    function disagree with the independently implemented
+    `readlevel.design_effect` by 2-4x on real data (3.19 vs 1.22), which is
+    exactly the disagreement this pair of estimators exists to detect.
+
+    UNRESOLVED, MEASURED 2026-09-07: switching to the empirical curve narrowed
+    the gap against `readlevel.design_effect` (3.19 -> 2.77 at the caller's
+    500 bp region scale) but did NOT close it -- the median per-region DE there
+    is 1.29. The remaining ~2x is a summary mismatch, not obviously a bug: this
+    function integrates a curve pooled across windows with variance weighting,
+    so high-variance windows dominate it, while the per-region design effect is
+    a median over windows. At 2 kb the two DO agree (pooled long-range
+    correlation 0.0733 vs median per-window implied ICC 0.0728); at 500 bp,
+    where short-range correlation dominates and its across-window spread is much
+    larger, they do not.
+
+    **Until that is resolved, prefer the direct per-region measurement**
+    (`readlevel.design_effect`) for any calibration decision. It is what the
+    argument in docs/2026-09-05_calibration_critique.md actually needs, and it
+    does not depend on the decay-curve machinery at all. Treat this function as
+    an upper-bound aggregate.
+    """
+    if n_cpgs < 2 or len(curve.centres) < 2:
         return 1.0
-    lags = np.arange(1, n_cpgs) * cpg_spacing_bp
-    weights = (n_cpgs - np.arange(1, n_cpgs))          # pairs at each lag
-    icc = float((weights * curve.amplitude * np.exp(-lags / curve.decay_bp)).sum()
-                / weights.sum())
+    lags = np.arange(1, n_cpgs) * float(cpg_spacing_bp)
+    weights = (n_cpgs - np.arange(1, n_cpgs)).astype(float)
+    corr = np.interp(lags, curve.centres, curve.corr,
+                     left=float(curve.corr[0]), right=float(curve.corr[-1]))
+    icc = float((weights * np.clip(corr, 0.0, 1.0)).sum() / weights.sum())
     return float(1.0 + (n_cpgs - 1) * icc)

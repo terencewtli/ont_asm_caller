@@ -1,0 +1,20 @@
+HG00146_chr15: streaming up to 12,000,000 rows from ../../modkit/HG00146_chr15_modkit_extract.tsv.gz
+  5,030,756 paired calls   (1,938,488 rows unmapped, ref_position<0)
+  strand: 4,887,958 plus / 5,173,554 minus   <-- BOTH present, normalisation required
+  665,531 (13.2%) below CONF_THRESH=0.8 -> no-call
+  51,461 (1.0%) 5hmC-dominant -> nocall
+
+  9049 windows of 500 bp   median 13 CpGs, 68 reads, span 439 bp
+  estimated call error rate eps = 0.0428 -> correlation attenuation factor (1-2eps)^2 = 0.836
+
+  stratum                         n  decay_bp     amp  amp_corr     r2  spacing  DE(fit)  DE(meas)
+  ALL                          9049       525   0.183     0.218  0.248       21     3.19      1.22
+  methylation < 0.2             668       290   0.205     0.246  0.573       30     2.54      1.06
+  methylation 0.2-0.8          7188       510   0.197     0.236  0.247       21     3.52      1.24
+  methylation > 0.8            1193       648   0.126     0.150  0.300       20     2.80      1.24
+  CpG-sparse tercile           3001       374   0.135     0.162  0.186       42     1.82      1.00
+  CpG-medium tercile           3027       397   0.136     0.162  0.212       22     2.62      1.21
+  CpG-dense tercile            3021       544   0.192     0.229  0.255       12     5.55      1.46
+
+  NOTE: windows are 500 bp, so a decay length approaching that
+  is a LOWER BOUND -- the curve cannot see past a window.
