@@ -38,7 +38,8 @@
 to rebuild) — the models, their derivations, the design-effect theory, the
 generative simulators and their limitations, what is and is not FDR-controlled,
 and the first real-data measurement. Current priorities:
-[`docs/PRIORITIES.md`](docs/PRIORITIES.md).
+[`docs/PRIORITIES.md`](docs/PRIORITIES.md); progress log and open
+threads: [`JOURNAL.md`](JOURNAL.md).
 
 A purpose-built statistical model for calling allele-specific methylation
 (ASM) from single-individual long-read (ONT) data — built after the
