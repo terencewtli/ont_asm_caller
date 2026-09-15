@@ -59,8 +59,12 @@ def stream(path, window_bp, stride, max_rows, stats):
     head = f" | head -n {max_rows + 1}" if max_rows else ""
     cmd = (f"gzip -dc {shlex.quote(path)}{head} | "
            f"awk -F'\\t' -v W={window_bp} -v K={stride} {shlex.quote(AWK)}")
-    proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, text=True,
-                            bufsize=1 << 20)
+    # pipefail: without it the pipeline reports awk's status, so a TRUNCATED
+    # .gz (gzip: unexpected end of file) exits 0 and silently yields a partial
+    # chromosome. Found on NA18508's local extract, which returned 2,384 windows
+    # against ~16k for complete files.
+    proc = subprocess.Popen(["bash", "-o", "pipefail", "-c", cmd],
+                            stdout=subprocess.PIPE, text=True, bufsize=1 << 20)
     pend = {}
     for line in proc.stdout:
         rid, pos, q, code = line.rstrip("\n").split("\t")
@@ -83,8 +87,10 @@ def stream(path, window_bp, stride, max_rows, stats):
         stats["kept"] += 1
         stats["err_sum"] += 1.0 - conf
         yield rid, key[1], (1 if which in ("m", "h") else 0)
-    if proc.wait() not in (0, 141):          # 141 = SIGPIPE from head, expected
-        raise RuntimeError(f"stream failed: {cmd}")
+    rc = proc.wait()
+    # 141 = SIGPIPE, expected only when head cut the stream short on purpose
+    if rc != 0 and not (max_rows and rc == 141):
+        raise RuntimeError(f"stream failed (exit {rc}; truncated input?): {cmd}")
 
 
 def window_metrics(pos, m):

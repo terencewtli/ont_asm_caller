@@ -1,8 +1,44 @@
 # Which commit produced the cluster's ASM loci?
 
-**Currently unrecorded, and it matters.** This note says what is ambiguous, how
-to resolve it from the outputs themselves, and what has been added so the
-question stops arising.
+> ### RESOLVED 2026-09-15: the existing production tables are post-cap, and `ccabe0f` cannot have changed them
+>
+> Checked directly against the cluster outputs and scripts rather than inferred:
+>
+> - **Geometry: post-cap, proven.** All **140** `tables/dasm_betabinom/*/regions_*.tsv`
+>   have a maximum `end − start` of exactly **1000 bp**; none exceeds `max_span`.
+>   A pre-cap table has regions up to 335 kb. Independently, the production script
+>   `scripts/wg/good_donors/G02_betabinom_region_chr1.py` passes
+>   `max_span=MAX_SPAN` to `cluster_cpgs`, a keyword that does not exist before
+>   `6df55b3` (`b449543` signature: `max_gap, min_cpgs` only), so on older code it
+>   would have raised rather than written a table.
+> - **Dispersion: unaffected, whichever commit ran.** `ccabe0f` did **not** change
+>   how `rho` is estimated or applied. It *added* `estimate_dispersion_trend`,
+>   `readlevel.py` and `simulate_reads.py`. `git diff 6df55b3 55cce16` shows zero
+>   changes to `region.py` or `model.py` and zero removed lines in `dispersion.py`.
+>   `G02` calls the original global `estimate_dispersion` and `test_regions`, so
+>   p-values are identical before and after `ccabe0f`.
+> - **Timing, consistent with both:** cap committed 09-05 21:15, `G02` edited to
+>   pass `max_span` 21:16, the first table (HG00146 chr1) written 21:33, dispersion
+>   commit 21:41, and every other table 09-06 15:15–17:14.
+>
+> **No re-run is needed for provenance.** Two things that remain true and matter
+> more:
+>
+> 1. **Production uses the global dispersion estimator**, the one
+>    `docs/2026-09-05_calibration_critique.md` measured as 2–3.5× too low on a
+>    bimodal methylome. The trend estimator was never wired into `G02`. That is a
+>    calibration question, not a provenance one.
+> 2. **`G02_betabinom_region_chr1.py` is not under version control** in either
+>    repo (only `G03`/`G04` `.sh` are tracked in `asm_lr`). The production
+>    calling logic lives only on the cluster. Add `write_stamp()` to it before the
+>    dipcall re-call, which will regenerate every table.
+>
+> The original analysis follows unchanged, except for the dispersion paragraph,
+> corrected below.
+
+**Unrecorded until 2026-09-15; see the resolution above.** This note says what
+was ambiguous, how to resolve it from the outputs themselves, and what has been
+added so the question stops arising.
 
 ## The ambiguity
 
@@ -14,7 +50,7 @@ results**:
 |---|---|---|
 | `513766e` | 2026-09-05 | region-level pooling introduced (`cluster_cpgs`) |
 | `6df55b3` | 2026-09-05 | **`max_span` cap added — changes region boundaries** |
-| `ccabe0f` | 2026-09-05 | **region-pooling + dispersion calibration fixed — changes p-values** |
+| `ccabe0f` | 2026-09-05 | ~~changes p-values~~ adds `estimate_dispersion_trend` + read-level path; **production path unchanged** (verified 2026-09-15) |
 
 All three landed on the same day. The production caller was run on the cluster
 somewhere in that window, and
@@ -58,8 +94,11 @@ converse is weaker and the function says so: a table with no wide region is
 
 ### The dispersion half is harder
 
-`ccabe0f` changed how `rho` is estimated and applied. Unlike region width, that
-leaves no structural fingerprint in the region table. If
+*(Corrected 2026-09-15: `ccabe0f` added a new estimator but did not change the
+one production calls, so for the existing tables this concern is moot. The general
+point stands for any future change to `estimate_dispersion` itself.)* A change to
+how `rho` is estimated or applied leaves no structural fingerprint in the region
+table. If
 `summary_{chrom}.json` records `rho_hat`, comparing it against a re-run on the
 same inputs will settle it; if it does not, **the honest answer is that it is
 not recoverable and the run should be repeated**. Do not reason backwards from

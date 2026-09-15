@@ -86,14 +86,30 @@ alone, which scores a `p_h = 0.686 / p_m = 0.314` position as confidently
 NA18508 1.13) are attenuated lower bounds. Cheap to fix — `P08` already has the
 corrected logic.
 
-### 3. Resolve the `implied_design_effect` vs `design_effect` disagreement
+### 3. ~~Resolve the `implied_design_effect` vs `design_effect` disagreement~~ — CLOSED 2026-09-15
 
-At 500 bp they differ ~2× (2.77 vs 1.29); at 2 kb they agree (0.0733 vs 0.0728).
-The likely cause is a summary mismatch — the curve is pooled with variance
-weighting, the DE is a median over windows — but it is not proven. **These two
-estimators disagreeing is the tripwire that says the decay measurement is not
-trustworthy**, so it should not be left standing. Until then, use the direct
-per-region `design_effect` for calibration decisions.
+**Not a summary mismatch; a wrong input.** `P10_estimator_reconciliation.py` walks from
+one estimator to the other one assumption at a time on the same 9,049 HG00146 windows:
+
+| step | DE |
+|---|---|
+| median `design_effect`, read halves (the reported number) | 1.22 |
+| mean instead of median (right skew) | 1.44 |
+| pooled variance-weighted icc, de-attenuated for call error | 1.64 |
+| `implied_design_effect` as called by P08 (`n_cpgs` = 13, gap 21 bp) | **2.81** / 3.17 de-att. |
+| `implied_design_effect` with C = positions seen by ≥50% of reads (5) | **1.56** |
+| pooled curve read at each read's own CpG pairs | 1.52 raw / 1.62 de-att. |
+
+P08 handed it `n_cpgs` = the **union** of positions in a window. Median per-position read
+support is **0.02**; 63% of positions are seen by <20% of a window's reads, and the median
+read observes **4.3** CpGs. Given the same inputs the two estimators agree within ~0.1. The
+remaining 1.22 vs ~1.5 is median vs mean of a right-skewed distribution.
+
+Consequences: the "median 13 CpGs per window" in the headline table counts sparse positions,
+not CpGs each molecule carries; use ~5. `design_effect` itself is robust to this (per-read
+fractions are unaffected). And **the steep short-range decay is real**: restricting to
+well-supported positions leaves the curve unchanged (0.52 → 0.53 at 10 bp), so item 4 is not
+chasing a sparse-position artefact.
 
 ### 4. Replace the single-exponential decay model
 
