@@ -1,0 +1,28 @@
+# P09_design_effect_cohort.py -- chr15, 500bp windows, every 10th window across the whole chromosome
+# run 2026-09-15 at commit 5cc5840 (P09 truncation fix f06d100 landed after; NA18508 is the one affected file)
+# DE = readlevel.design_effect on two read halves, all reads pooled (haplotypes NOT split; conservative in ASM windows)
+# classes from scripts/phasing_qc/README.md: sane = 6 QC-pass donors; flagged = implausibly high ASM rate; zero-hit = rho_hat 5-10x cohort
+
+donor    class      windows reads cbar    eps  medDE         IQR meanDE   p90    %>2   %>5  lastMb
+HG00146  sane         16135    70  3.6 0.0434   1.09   0.92-1.38   1.28  1.80   6.9%  0.7%   102.0
+HG00344  zero-hit     15423    52  3.7 0.0444   1.11   0.93-1.43   1.31  1.86   7.7%  0.7%   102.0
+HG01167  flagged      15662    69  3.8 0.0421   1.03   0.87-1.32   1.25  1.75   6.5%  0.8%   102.0
+HG02392  sane         16205    79  3.6 0.0425   1.10   0.95-1.37   1.28  1.76   6.6%  0.8%   102.0
+NA18508  flagged       2384    76  4.3 0.0420   1.05   0.87-1.39   1.30  1.89   7.9%  0.7%    31.6
+NA18620  flagged      16045    82  3.7 0.0425   1.12   0.95-1.43   1.33  1.84   7.3%  0.8%   102.0
+NA18959  sane         15421    64  3.7 0.0424   1.11   0.95-1.40   1.32  1.79   6.7%  0.8%   102.0
+NA19682  sane         16011    90  3.7 0.0417   1.15   0.99-1.43   1.31  1.81   6.7%  0.5%   102.0
+NA19700  sane         15809    64  3.7 0.0398   1.14   0.98-1.44   1.33  1.87   7.7%  0.8%   102.0
+NA21093  flagged      16579    99  3.6 0.0467   1.18   0.99-1.49   1.38  1.92   8.4%  0.9%   102.0
+NA21110  sane         16448    82  3.6 0.0433   1.15   0.99-1.43   1.33  1.84   7.3%  0.7%   102.0
+NA21144  zero-hit     16389    80  3.6 0.0452   1.17   1.00-1.47   1.38  1.91   8.3%  0.8%   102.0
+
+NA18508 local extract is TRUNCATED (gzip: unexpected end of file); its row covers only the start of chr15 and is excluded below.
+
+sane      n=6  donor median DE 1.13 (range 1.09-1.15)  %>5 range 0.5-0.8  median reads/window 74
+flagged   n=3  donor median DE 1.12 (range 1.03-1.18)  %>5 range 0.8-0.9  median reads/window 82
+zero-hit  n=2  donor median DE 1.14 (range 1.11-1.17)  %>5 range 0.7-0.8  median reads/window 66
+
+all 11 complete donors: median DE 1.12, range 1.03-1.18; %>5 range 0.5-0.9
+corr(median DE, median reads/window) = 0.54
+corr(median DE, eps) = 0.33

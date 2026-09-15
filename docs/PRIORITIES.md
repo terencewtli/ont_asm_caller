@@ -7,6 +7,34 @@ measurement existed.
 
 ---
 
+## UPDATE 2026-09-15: measured on 11 donors across all of chr15, and it is smaller still
+
+`P09_design_effect_cohort.py`, every 10th 500 bp window across the **whole** of chr15 (~16k
+windows per donor, identical loci in every donor), same call logic as below
+(`benchmarks/results/2026-09-15_chr15_design_effect_12donors.txt`):
+
+| class | donors | median DE, per donor | % windows DE > 5 |
+|---|---|---|---|
+| sane | 6 | 1.09–1.15 | 0.5–0.8% |
+| flagged (high ASM rate) | 3 | 1.03–1.18 | 0.8–0.9% |
+| zero-hit (ρ̂ 5–10× cohort) | 2 | 1.11–1.17 | 0.7–0.8% |
+
+NA18508 is excluded: its local extract is truncated (`gzip: unexpected end of file`).
+
+- **Pooling is defensible at the caller's scale in every donor measured**, not just HG00146.
+- **The design effect does not distinguish sane, flagged or zero-hit donors.** It cannot
+  explain either anomaly, so the switch-error / haplotype-label hypothesis stands, and the
+  dipcall re-call is its direct test. This closes the handoff note's item 1 for chr15, and item 6
+  step 1 below. Parent project `md/20260907_outstanding_items.md` #10 (a shared root cause for DE
+  and the per-donor bulk-%mCG gradient) is also unsupported: DE is flat across donors.
+- **The 1.29 below was an overestimate from an unrepresentative stretch.** HG00146's
+  whole-chromosome median is **1.09**, against 1.22 on its first 12M rows (the pericentromeric /
+  15q11 end). Call error is uniform too: ε = 0.040–0.047 in every donor.
+- Not measured: haplotype-split DE, other chromosomes, or the caller's own region boundaries rather
+  than fixed windows.
+
+The section below is kept as the record of the first measurement.
+
 ## The headline: the design effect has now been measured, and it is small
 
 `readlevel.design_effect` on **HG00146 chr15**, 12M `modkit extract` rows

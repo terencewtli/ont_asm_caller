@@ -19,8 +19,7 @@ Companion documents, and the division of labour between them:
 
 ## Where things stand — 2026-09-15
 
-**Branch:** `cpel-evaluation-and-pattern-path`, 8 commits ahead of `master`,
-unmerged. `master` is at `55cce16` (2026-09-07).
+**Branch:** `cpel-evaluation-and-pattern-path`, **merged into `master` 2026-09-15** (fast-forward).
 
 **Version:** 0.2.0. **Tests:** 73 passing (`python3 -m pytest`, ~85 s).
 
@@ -38,8 +37,9 @@ important thing to know about the current state:
 | basecall error rate (ε ≈ 0.043) | `pattern.py` (MML / NME / JSD / KS) |
 | region-scale DE curve | `null.MatchedNull` |
 
-**The headline result of this branch:** the measured design effect at the
-caller's own 500 bp region scale is **median 1.29** (IQR 1.05–1.72, 1% of
+**Updated 2026-09-15:** across 11 donors and the whole of chr15 the median design effect is
+**1.03–1.18** per donor (see the log entry). **The original headline result of this branch:** the
+measured design effect at the caller's own 500 bp region scale is **median 1.29** (IQR 1.05–1.72, 1% of
 regions above 5). The calibration critique that motivated the read-level and
 pattern paths measured its 2.9×/11× type-I inflation at DE ≈ 5.5 — the 99th
 percentile of real regions, not the typical one. Region pooling is therefore
@@ -51,6 +51,30 @@ region, so this is a switch, not a research programme.
 ---
 
 ## Log
+
+### 2026-09-15 — provenance resolved, DE across 11 donors, estimators reconciled, a scoop read (`5cc5840`, `f06d100`, this commit)
+
+- **Merged** `cpel-evaluation-and-pattern-path` into `master` (fast-forward).
+- **Production-table provenance: resolved, no re-run needed.** All 140 cluster tables have max span
+  exactly 1000 bp (post-cap); `ccabe0f` never touched the code production calls. Two real findings
+  instead: production still uses the **global** dispersion estimator, and
+  `G02_betabinom_region_chr1.py` is **not in version control** anywhere. → `docs/PROVENANCE.md`
+- **The dipcall re-call never ran.** P01/P02 log directories are empty, there is no job accounting,
+  and none of the six sane donors has a `_dip.vcf.gz`. Every locus number is still built on
+  panel phasing.
+- **Design effect, 11 donors × whole chr15** (`P09`): median 1.03–1.18 per donor, 0.5–0.9% of
+  windows above 5, **no separation between sane, flagged and zero-hit donors**. DE explains neither
+  anomaly. HG00146's whole-chromosome median is 1.09; the earlier 1.22–1.29 came from the first
+  few Mb. → `benchmarks/results/2026-09-15_chr15_design_effect_12donors.txt`
+- **Estimator disagreement closed** (`P10`): `implied_design_effect` was given the window's union of
+  positions (13) as C; reads carry ~4.3. With the right C the estimators agree within ~0.1. The steep
+  short-range decay survives filtering to well-supported positions, so it is real.
+- **P09 defect found and fixed:** a truncated `.gz` exited 0. NA18508's local extract is truncated.
+- **Scoop assessment:** Meredith et al. 2026 (ASM-LR, NIH CARD brain cohort) is a *phased mQTL*,
+  not per-individual ASM calling. It takes long-read phased mQTL, SVs as drivers and the name; it
+  cannot reach imprinted or non-genetic ASM, per-individual calls or molecule structure. →
+  `asm_lr/md/20260915_meredith_2026_asmlr_comparison.md`
+
 
 ### 2026-09-08 — literature survey: what everyone else actually does (`5cf73b2`)
 

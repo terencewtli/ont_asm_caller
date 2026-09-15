@@ -1,0 +1,32 @@
+# P10_estimator_reconciliation.py on HG00146 chr15, first 12M rows, 500bp windows, stride 1 (the data behind the original 2.77 vs 1.29 disagreement)
+
+HG00146_chr15_modkit_extract.tsv.gz  first 12,000,000 rows  9049 windows of 500 bp
+eps=0.0428  attenuation=0.836  median C=13  median cbar=4.3  median gap=21 bp  median span/(C-1)=33 bp
+
+  A  median design_effect, read halves                      1.22
+  B  median design_effect, all reads                        1.23
+  C  MEAN design_effect, all reads                          1.44
+     median de_het (heterogeneous-mean baseline)            1.67
+     mean de_het                                            2.11
+  D  median 1+(cbar-1)*icc_w per window                     1.32
+  D' mean 1+(cbar-1)*icc_w per window                       1.49
+  E  pooled icc_w, median cbar  (raw)                       1.54
+  F  E de-attenuated                                        1.64
+  G  implied_design_effect, median gap, raw curve           2.81
+  G' implied_design_effect, median gap, de-attenuated       3.17
+  G''implied_design_effect, span/(C-1) gap, de-att.         2.81
+  H  curve at each READ's own pairs, raw, median            1.52
+  H' ... de-attenuated, median                              1.62
+  H''... de-attenuated, mean                                1.79
+  I  implied_design_effect, C = well-supported positions, de-att.   1.56
+
+  per-position read support: median 0.02; 63.1% of positions seen by <20% of the window's reads; 33.5% by >=50%
+  positions per window seen by >=50% of reads: median 5 (vs n_cpgs 13, cbar 4.3)
+
+  pooled icc_w=0.1633   median per-window icc_w=0.0942   mean=0.1095
+  corr(de_one, de_icc) across windows = 0.798
+  curve: 10:0.52  23:0.29  29:0.21  36:0.17  46:0.13  59:0.11  75:0.10  95:0.08  121:0.10  154:0.14  196:0.17  249:0.09  316:0.10  402:0.11  511:0.07
+  corr(de_one, de_icc) across windows = 0.798
+  curve: 10:0.52  23:0.29  29:0.21  36:0.17  46:0.13  59:0.11  75:0.10  95:0.08  121:0.10  154:0.14  196:0.17  249:0.09  316:0.10  402:0.11  511:0.07
+  curve, positions seen by >=20% of reads: 10:0.52  23:0.29  29:0.21  36:0.17  46:0.14  59:0.11  75:0.10  95:0.08  121:0.11  154:0.14  196:0.18  249:0.09  316:0.11  402:0.11  511:0.07
+  curve, positions seen by >=50% of reads: 10:0.53  23:0.29  29:0.21  36:0.17  46:0.13  59:0.11  75:0.10  95:0.08  121:0.10  154:0.14  196:0.18  249:0.09  316:0.11  402:0.11  511:0.07
