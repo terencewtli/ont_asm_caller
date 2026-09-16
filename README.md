@@ -302,6 +302,18 @@ testing the number of components) and is not implemented here.
   (`simulate_loci(..., switch_error_rate=...)`) to characterize how
   imperfect phasing attenuates detectable effect sizes, but isn't yet
   incorporated into the test itself.
+- **Cross-population detection-rate comparisons are not yet safe.** Ancestry
+  groups differ systematically in genome-wide heterozygosity density (larger
+  historical effective population size in African-ancestry genomes is
+  standard population genetics, confirmed in a real 221-donor panel via the
+  sibling `asm_lr_hprc2` project's AF/LD work), so any test requiring a
+  phasing-informative het site will have systematically different yield by
+  ancestry for reasons unrelated to real ASM biology. See `JOURNAL.md`
+  2026-09-16 and `docs/PRIORITIES.md` item 8 — not yet measured against real
+  calls (blocked on the same haplotagged-BAM gap as everything else ASM-
+  specific), but the intended fix is a caller-level output (explicit
+  per-locus power/confidence from informative-read count), not a filtering
+  change, so it belongs in this list now.
 
 ## Development
 

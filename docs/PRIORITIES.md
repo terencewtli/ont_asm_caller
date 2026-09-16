@@ -180,6 +180,43 @@ probed the regime that motivated the read-level path. Less urgent now that real
 DE is known to be ~1.3, but it is why "pooled_bb wins everywhere" in that table
 should not be quoted.
 
+### 8. Ancestry-driven heterozygosity density will confound any cross-population detection-rate comparison
+
+Flagged 2026-09-16 from the sibling `asm_lr_hprc2` project — see `JOURNAL.md`'s
+2026-09-16 entry for the full reasoning. Blocked on the same haplotagged-BAM
+gap as item 1 (can't measure this against real ASM calls until those exist),
+but the shape of the fix affects how the caller should be built, so it belongs
+here now rather than after the fact.
+
+**The problem in one line:** African-ancestry genomes carry more heterozygous
+sites genome-wide (larger historical effective population size — a standard
+population-genetics fact, confirmed in `asm_lr_hprc2`'s own 221-donor panel via
+1000G-panel AF divergence and LD-decay measurements this session). Any test
+that needs a phasing-informative het site to even attempt a call will therefore
+have systematically higher yield in higher-heterozygosity populations, for
+reasons with nothing to do with real ASM biology. Compare raw detection counts
+across ancestries without accounting for this and you're measuring
+heterozygosity density, not biology.
+
+**Do not fix it by loosening the het-site requirement per ancestry** — that
+trades a quantifiable confound for an ancestry-conditional analytical choice,
+which is worse (see JOURNAL entry for the ascertainment-bias-array analogy).
+
+**Fix direction:** extend this package's existing measured-nuisance-parameter
+posture (DE, dispersion, call-error rate are all measured quantities that
+propagate into calibration, not assumed constants — see item 3) to per-locus
+het-site informativeness. A locus with few phasing-informative reads should
+come out *underpowered* (wide interval, explicit low-confidence flag), not
+silently folded into a binary "not detected." That's a caller-level output
+change (extend `region_statistics`/`test_regions` to report and propagate
+informative-read count as an explicit power indicator), not a filtering change
+upstream of the caller.
+
+**Not yet done:** measuring per-superpopulation het-site density in a real
+donor panel (in progress in `asm_lr_hprc2` as of this entry), and deciding the
+exact form of the power/confidence output. No code changed in this repo for
+this item yet.
+
 ---
 
 ## Resolved / demoted

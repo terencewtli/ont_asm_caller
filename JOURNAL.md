@@ -17,6 +17,65 @@ Companion documents, and the division of labour between them:
 
 ---
 
+## Cross-project flag — 2026-09-16: ancestry-driven heterozygosity density confounds any cross-population detection-rate comparison
+
+Not caller work done in this repo — a design concern raised while working the sibling
+`asm_lr_hprc2` project (same population-scale ASM effort, different codebase) that belongs on
+record here because it's a property of what any long-read ASM caller has to consume as input,
+not a property of that project's specific pipeline. Filed as `PRIORITIES.md` item 8 (see there
+for the actionable version); this entry is the reasoning trail.
+
+**The observation.** `asm_lr_hprc2`'s 2026-09-16 session measured real, ancestry-structured
+population-genetics divergence in its 221-donor HPRC2 panel (1000G high-coverage panel subset,
+chr1-3): among sites common (MAF≥5%) in the pooled panel, EAS donors show 14.6% become
+monomorphic and 25.1% become rare within-population vs. AFR's 3.1%/15.4%; LD decay differs
+sharply (AFR r²=0.40 at 0-10kb vs. EAS 0.78). Both are well-established population-genetics
+facts (African populations' larger historical effective size, no severe out-of-Africa
+bottleneck) — the contribution here is confirming they hold in this exact donor panel, not
+discovering them.
+
+**Why this is a caller problem, not just a data-prep problem.** Any long-read ASM approach
+needs a read to span a het/phasing-informative site to be usable at all (in `asm_lr_hprc2`,
+this is H02's `k>=1` het-site filter; this repo's own tests need haplotype tags for the same
+reason). Because African-ancestry genomes carry systematically more heterozygous sites
+genome-wide, the *fraction of reads that even become testable* will differ by ancestry for
+purely mechanical, population-genetic reasons — independent of any real difference in ASM
+biology. A population with lower baseline heterozygosity will show a lower apparent ASM
+detection rate even when the true underlying regulation is identical, simply because fewer of
+its reads clear the informativeness bar. Compare raw "detected loci" counts across ancestries
+without accounting for this, and you're measuring heterozygosity density, not biology.
+
+**Why the fix doesn't belong in the filter/threshold.** The tempting fix — loosen the
+informativeness requirement for lower-heterozygosity populations — trades a quantifiable
+confound for an unquantifiable, ancestry-conditional analytical choice, which is a worse
+problem: now the pipeline treats populations differently before looking at the outcome, and
+that's much harder to defend or reason about than a uniform filter with a known, measurable
+power differential. Historical precedent for the wrong instinct here: genotyping-array
+ascertainment bias against non-European variation was corrected downstream (imputation-quality
+metrics, ancestry-matched panels), not by redesigning arrays per population — same shape of
+problem.
+
+**Where the fix belongs.** In this repo's terms: the design-effect framework already treats
+per-locus read support (`n_cpgs`, informative-read count) as a measured quantity that
+propagates into calibration (see `docs/PRIORITIES.md` item 3's `implied_design_effect`
+reconciliation) rather than a hard pass/fail gate. The same posture should extend to
+**het-site informativeness**: a locus with few phasing-informative reads should come out of the
+caller as *underpowered* (wide interval, explicit low-confidence flag) rather than silently
+folded into a binary "not detected." That converts an invisible ancestry confound into an
+explicit, quantified power difference — the kind of thing precision-weighting or a
+common-well-powered-subset restriction can correct for in a downstream cross-ancestry
+comparison, the same way this package already treats DE and dispersion as measured nuisance
+parameters rather than assumed constants.
+
+**Status: flagged, not measured in this repo.** `asm_lr_hprc2` was mid-computation on actual
+per-superpopulation het-site density (from its own H01 output) at the time of this entry — not
+yet confirmed that African donors in that specific panel show higher het-site density, only
+that population genetics strongly predicts they should and that the AF/LD divergence numbers
+above are consistent with it. Real numbers, once they land, belong in `PRIORITIES.md` item 8,
+not here.
+
+---
+
 ## Where things stand — 2026-09-15
 
 **Branch:** `cpel-evaluation-and-pattern-path`, **merged into `master` 2026-09-15** (fast-forward).
