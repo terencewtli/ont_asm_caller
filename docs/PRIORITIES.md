@@ -212,10 +212,13 @@ change (extend `region_statistics`/`test_regions` to report and propagate
 informative-read count as an explicit power indicator), not a filtering change
 upstream of the caller.
 
-**Not yet done:** measuring per-superpopulation het-site density in a real
-donor panel (in progress in `asm_lr_hprc2` as of this entry), and deciding the
-exact form of the power/confidence output. No code changed in this repo for
-this item yet.
+**Measured, same day (see `JOURNAL.md`):** AFR 1470.4 het sites/Mb vs. EAS
+1073.4 (~37% higher), ANOVA R²=0.917 across 5 superpopulations, p=1.6×10⁻¹⁰²
+— superpopulation alone accounts for essentially all of the variance in
+het-site density. The confound is confirmed, not just predicted. **Not yet
+done:** the actual detection-rate effect on real ASM calls (blocked on item
+1's haplotagged-BAM gap) and deciding the exact form of the power/confidence
+output. No code changed in this repo for this item yet.
 
 ---
 

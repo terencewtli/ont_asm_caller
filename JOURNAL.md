@@ -67,12 +67,23 @@ common-well-powered-subset restriction can correct for in a downstream cross-anc
 comparison, the same way this package already treats DE and dispersion as measured nuisance
 parameters rather than assumed constants.
 
-**Status: flagged, not measured in this repo.** `asm_lr_hprc2` was mid-computation on actual
-per-superpopulation het-site density (from its own H01 output) at the time of this entry — not
-yet confirmed that African donors in that specific panel show higher het-site density, only
-that population genetics strongly predicts they should and that the AF/LD divergence numbers
-above are consistent with it. Real numbers, once they land, belong in `PRIORITIES.md` item 8,
-not here.
+**Status: measured, same day.** `asm_lr_hprc2` finished the per-superpopulation het-site density
+computation (from its own H01 output, 197 donors with complete data, sites/Mb genome-wide):
+
+| superpop | n donors | mean het sites/Mb |
+|---|---|---|
+| AFR | 54 | 1470.4 |
+| SAS | 36 | 1166.2 |
+| AMR | 40 | 1137.3 |
+| EUR | 29 | 1130.0 |
+| EAS | 38 | 1073.4 |
+
+One-way ANOVA: **R² = 0.917, F = 530, p = 1.6×10⁻¹⁰²**. Superpopulation alone explains 91.7% of
+the variance in het-site density — not a subtle effect. AFR donors carry ~37% more heterozygous
+sites per Mb than EAS donors. This is the upstream input to every downstream het-site-filtered
+test in both projects; the confound described above is confirmed, not just predicted from
+population-genetics priors. Still not measured: how this translates into actual ASM
+detection-rate differences on real calls (still blocked on the haplotagged-BAM gap, item 1).
 
 ---
 
